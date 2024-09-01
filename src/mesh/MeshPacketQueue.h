@@ -19,6 +19,8 @@ class MeshPacketQueue
   public:
     explicit MeshPacketQueue(size_t _maxLen);
 
+    uint32_t latesttime;
+
     /** enqueue a packet, return false if full */
     bool enqueue(meshtastic_MeshPacket *p);
 

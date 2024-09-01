@@ -69,17 +69,27 @@ bool MeshPacketQueue::enqueue(meshtastic_MeshPacket *p)
     // Find the correct position using upper_bound to maintain a stable order
     auto it = std::upper_bound(queue.begin(), queue.end(), p, CompareMeshPacketFunc);
     queue.insert(it, p); // Insert packet at the found position
+
+    if (p->rx_time != 0)
+        latesttime = p->rx_time;
     return true;
 }
 
 meshtastic_MeshPacket *MeshPacketQueue::dequeue()
 {
+    int ntime;
     if (empty()) {
         return NULL;
     }
 
     auto *p = queue.front();
     queue.erase(queue.begin()); // Remove the highest-priority packet
+
+    if (p->rx_time != 0)
+        ntime = latesttime - p->rx_time;
+    else
+        ntime = -1;
+    LOG_DEBUG("TXDequeue: id=0x%x, priority=%d, node_time=%d, qdepth=%d\n", p->id, p->priority, ntime, queue.size());
     return p;
 }
 
