@@ -501,7 +501,7 @@ void MQTT::publishQueuedMessages()
     }
 }
 
-void MQTT::onSend(const meshtastic_MeshPacket &mp, const meshtastic_MeshPacket &mp_decoded, ChannelIndex chIndex)
+void MQTT::onSend(const meshtastic_MeshPacket &mp, const meshtastic_MeshPacket &mp_decoded, ChannelIndex chIndex, bool islogging)
 {
     if (mp.via_mqtt)
         return; // Don't send messages that came from MQTT back into MQTT
@@ -557,7 +557,7 @@ void MQTT::onSend(const meshtastic_MeshPacket &mp, const meshtastic_MeshPacket &
             // FIXME - this size calculation is super sloppy, but it will go away once we dynamically alloc meshpackets
             static uint8_t bytes[meshtastic_MqttClientProxyMessage_size];
             size_t numBytes = pb_encode_to_bytes(bytes, sizeof(bytes), &meshtastic_ServiceEnvelope_msg, env);
-            std::string topic = cryptTopic + channelId + "/" + owner.id;
+            std::string topic = cryptTopic + ((islogging) ? "logging/" : "") + channelId + "/" + owner.id;
             LOG_DEBUG("MQTT Publish %s, %u bytes\n", topic.c_str(), numBytes);
 
             publish(topic.c_str(), bytes, numBytes, false);
@@ -567,7 +567,7 @@ void MQTT::onSend(const meshtastic_MeshPacket &mp, const meshtastic_MeshPacket &
                 // handle json topic
                 auto jsonString = MeshPacketSerializer::JsonSerialize((meshtastic_MeshPacket *)&mp_decoded);
                 if (jsonString.length() != 0) {
-                    std::string topicJson = jsonTopic + channelId + "/" + owner.id;
+                    std::string topicJson = jsonTopic + ((islogging) ? "logging/" : "") + channelId + "/" + owner.id;
                     LOG_INFO("JSON publish message to %s, %u bytes: %s\n", topicJson.c_str(), jsonString.length(),
                              jsonString.c_str());
                     publish(topicJson.c_str(), jsonString.c_str(), false);
