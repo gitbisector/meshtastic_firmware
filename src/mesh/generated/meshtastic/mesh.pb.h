@@ -828,6 +828,8 @@ typedef struct _meshtastic_Neighbor {
     uint32_t node_id;
     /* SNR of last heard message */
     float snr;
+    /* gets set if snr of last message was dropped as it was way worse */
+    int wayworse;
     /* Reception time (in secs since 1970) of last message that was last sent by this ID.
  Note: this is for local storage only and will not be sent out over the mesh. */
     uint32_t last_rx_time;
@@ -1124,7 +1126,7 @@ extern "C" {
 #define meshtastic_ToRadio_init_zero             {0, {meshtastic_MeshPacket_init_zero}}
 #define meshtastic_Compressed_init_zero          {_meshtastic_PortNum_MIN, {0, {0}}}
 #define meshtastic_NeighborInfo_init_zero        {0, 0, 0, 0, {meshtastic_Neighbor_init_zero, meshtastic_Neighbor_init_zero, meshtastic_Neighbor_init_zero, meshtastic_Neighbor_init_zero, meshtastic_Neighbor_init_zero, meshtastic_Neighbor_init_zero, meshtastic_Neighbor_init_zero, meshtastic_Neighbor_init_zero, meshtastic_Neighbor_init_zero, meshtastic_Neighbor_init_zero}}
-#define meshtastic_Neighbor_init_zero            {0, 0, 0, 0}
+#define meshtastic_Neighbor_init_zero            {0, 0, 0, 0, 0}
 #define meshtastic_DeviceMetadata_init_zero      {"", 0, 0, 0, 0, 0, _meshtastic_Config_DeviceConfig_Role_MIN, 0, _meshtastic_HardwareModel_MIN, 0}
 #define meshtastic_Heartbeat_init_zero           {0}
 #define meshtastic_NodeRemoteHardwarePin_init_zero {0, false, meshtastic_RemoteHardwarePin_init_zero}

@@ -177,9 +177,15 @@ meshtastic_Neighbor *NeighborInfoModule::getOrCreateNeighbor(NodeNum originalSen
     // look for one in the existing list
     for (size_t i = 0; i < neighbors.size(); i++) {
         if (neighbors[i].node_id == n) {
-            // if found, update it
-            neighbors[i].snr = snr;
-            neighbors[i].last_rx_time = getTime();
+            // if found, update it unless it is a huge jump worse
+            if (neighbors[i].wayworse < 3 && neighbors[i].snr > snr + 6) {
+                neighbors[i].wayworse++;
+                LOG_INFO("Neighbor SNR way worse %x %6.2f\n", n, snr);
+            } else {
+                neighbors[i].snr = snr;
+                neighbors[i].wayworse = 0;
+                neighbors[i].last_rx_time = getTime();
+            }
             // Only if this is the original sender, the broadcast interval corresponds to it
             if (originalSender == n && node_broadcast_interval_secs != 0)
                 neighbors[i].node_broadcast_interval_secs = node_broadcast_interval_secs;
@@ -191,6 +197,7 @@ meshtastic_Neighbor *NeighborInfoModule::getOrCreateNeighbor(NodeNum originalSen
     meshtastic_Neighbor new_nbr = meshtastic_Neighbor_init_zero;
     new_nbr.node_id = n;
     new_nbr.snr = snr;
+    new_nbr.wayworse = 0;
     new_nbr.last_rx_time = getTime();
     // Only if this is the original sender, the broadcast interval corresponds to it
     if (originalSender == n && node_broadcast_interval_secs != 0)
