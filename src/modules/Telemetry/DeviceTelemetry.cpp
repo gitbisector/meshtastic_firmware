@@ -13,6 +13,11 @@
 #include <OLEDDisplayUi.h>
 #include <meshUtils.h>
 
+#if defined(META_MQTT) && !MESHTASTIC_EXCLUDE_MQTT
+#include "mqtt/MQTT.h"
+#include "target_specific.h"
+#endif
+
 #define MAGIC_USB_BATTERY_LEVEL 101
 
 int32_t DeviceTelemetryModule::runOnce()
@@ -29,13 +34,26 @@ int32_t DeviceTelemetryModule::runOnce()
         config.device.role != meshtastic_Config_DeviceConfig_Role_CLIENT_HIDDEN) {
         sendTelemetry();
         lastSentToMesh = uptimeLastMs;
-    } else if (service->isToPhoneQueueEmpty()) {
-        // Just send to phone when it's not our time to send to mesh yet
-        // Only send while queue is empty (phone assumed connected)
-        sendTelemetry(NODENUM_BROADCAST, true);
-        if (lastSentStatsToPhone == 0 || (uptimeLastMs - lastSentStatsToPhone) >= sendStatsToPhoneIntervalMs) {
-            sendLocalStatsToPhone();
-            lastSentStatsToPhone = uptimeLastMs;
+#ifdef META_MQTT
+        lastSentToMqtt = uptimeLastMs;
+#endif
+    } else {
+#ifdef META_MQTT
+        // mqtt-only fixed 15 mins update interval until we do custom PBs too.
+        if ((lastSentToMqtt == 0) || ((uptimeLastMs - lastSentToMqtt) >= 900000)) {
+            sendTelemetry(NODENUM_BROADCAST, true, true);
+            LOG_INFO("sendTelemetry: %d %d\n", lastSentToMqtt, uptimeLastMs);
+            lastSentToMqtt = uptimeLastMs;
+        }
+#endif
+        if (service->isToPhoneQueueEmpty()) {
+            // Just send to phone when it's not our time to send to mesh yet
+            // Only send while queue is empty (phone assumed connected)
+            sendTelemetry(NODENUM_BROADCAST, true);
+            if (lastSentStatsToPhone == 0 || (uptimeLastMs - lastSentStatsToPhone) >= sendStatsToPhoneIntervalMs) {
+                sendLocalStatsToPhone();
+                lastSentStatsToPhone = uptimeLastMs;
+            }
         }
     }
     return sendToPhoneIntervalMs;
@@ -164,7 +182,7 @@ void DeviceTelemetryModule::sendLocalStatsToPhone()
     service->sendToPhone(p);
 }
 
-bool DeviceTelemetryModule::sendTelemetry(NodeNum dest, bool phoneOnly)
+bool DeviceTelemetryModule::sendTelemetry(NodeNum dest, bool phoneOnly, bool mqttlogger)
 {
     meshtastic_Telemetry telemetry = getDeviceTelemetry();
     LOG_INFO("Send: air_util_tx=%f, channel_utilization=%f, battery_level=%i, voltage=%f, uptime=%i",
@@ -178,7 +196,13 @@ bool DeviceTelemetryModule::sendTelemetry(NodeNum dest, bool phoneOnly)
     p->priority = meshtastic_MeshPacket_Priority_BACKGROUND;
 
     nodeDB->updateTelemetry(nodeDB->getNodeNum(), telemetry, RX_SRC_LOCAL);
-    if (phoneOnly) {
+    if (mqttlogger) {
+#ifdef META_MQTT
+        if (mqtt) {
+            mqtt->onSend(*p, *p, 0, true);
+        }
+#endif
+    } else if (phoneOnly) {
         LOG_INFO("Send packet to phone");
         service->sendToPhone(p);
     } else {

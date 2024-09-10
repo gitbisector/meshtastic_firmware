@@ -5,6 +5,11 @@
 #include "RTC.h"
 #include <Throttle.h>
 
+#if defined(META_MQTT) && !MESHTASTIC_EXCLUDE_MQTT
+#include "mqtt/MQTT.h"
+#include "target_specific.h"
+#endif
+
 NeighborInfoModule *neighborInfoModule;
 
 /*
@@ -111,8 +116,15 @@ void NeighborInfoModule::sendNeighborInfo(NodeNum dest, bool wantReplies)
     p->to = dest;
     p->decoded.want_response = wantReplies;
     p->priority = meshtastic_MeshPacket_Priority_BACKGROUND;
-    printNeighborInfo("SENDING", &neighborInfo);
-    service->sendToMesh(p, RX_SRC_LOCAL, true);
+    if (airTime->isTxAllowedChannelUtil(true) && airTime->isTxAllowedAirUtil()) {
+        printNeighborInfo("SENDING", &neighborInfo);
+        service->sendToMesh(p, RX_SRC_LOCAL, true);
+    }
+#ifdef META_MQTT
+    if (mqtt) {
+        mqtt->onSend(*p, *p, 0, true);
+    }
+#endif
 }
 
 /*
@@ -121,8 +133,7 @@ Will be used for broadcast.
 */
 int32_t NeighborInfoModule::runOnce()
 {
-    if (moduleConfig.neighbor_info.transmit_over_lora && !channels.isDefaultChannel(channels.getPrimaryIndex()) &&
-        airTime->isTxAllowedChannelUtil(true) && airTime->isTxAllowedAirUtil()) {
+    if (moduleConfig.neighbor_info.transmit_over_lora && airTime->isTxAllowedChannelUtil(true) && airTime->isTxAllowedAirUtil()) {
         sendNeighborInfo(NODENUM_BROADCAST, false);
     } else {
         sendNeighborInfo(NODENUM_BROADCAST_NO_LORA, false);
