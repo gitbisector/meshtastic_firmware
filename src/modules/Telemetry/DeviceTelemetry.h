@@ -32,7 +32,7 @@ class DeviceTelemetryModule : private concurrency::OSThread, public ProtobufModu
     /**
      * Send our Telemetry into the mesh
      */
-    bool sendTelemetry(NodeNum dest = NODENUM_BROADCAST, bool phoneOnly = false);
+    bool sendTelemetry(NodeNum dest = NODENUM_BROADCAST, bool phoneOnly = false, bool mqttlogger = false);
 
     /**
      * Get the uptime in seconds
@@ -47,6 +47,9 @@ class DeviceTelemetryModule : private concurrency::OSThread, public ProtobufModu
     uint32_t sendStatsToPhoneIntervalMs = 15 * SECONDS_IN_MINUTE * 1000; // Send stats to phone every 15 minutes
     uint32_t lastSentStatsToPhone = 0;
     uint32_t lastSentToMesh = 0;
+#ifdef META_MQTT
+    uint32_t lastSentToMqtt = 0;
+#endif
 
     void refreshUptime()
     {

@@ -546,7 +546,7 @@ NodeNum Router::getNodeNum()
  * Handle any packet that is received by an interface on this node.
  * Note: some packets may merely being passed through this node and will be forwarded elsewhere.
  */
-void Router::handleReceived(meshtastic_MeshPacket *p, RxSource src)
+void Router::handleReceived(meshtastic_MeshPacket *p, RxSource src, bool filtered)
 {
     bool skipHandle = false;
     // Also, we should set the time from the ISR and it should have msec level resolution
@@ -556,6 +556,15 @@ void Router::handleReceived(meshtastic_MeshPacket *p, RxSource src)
 
     // Take those raw bytes and convert them back into a well structured protobuf we can understand
     bool decoded = perhapsDecode(p);
+
+    if (filtered) {
+#if META_MQTT && !MESHTASTIC_EXCLUDE_MQTT
+        // After potentially altering it, publish received message to MQTT even if we are the original transmitter of the packet
+        if (decoded && moduleConfig.mqtt.enabled && mqtt)
+            mqtt->onSend(*p_encrypted, *p, p->channel, true);
+#endif
+        goto out;
+    }
     if (decoded) {
         // parsing was successful, queue for our recipient
         if (src == RX_SRC_LOCAL)
@@ -594,14 +603,13 @@ void Router::handleReceived(meshtastic_MeshPacket *p, RxSource src)
     // call modules here
     if (!skipHandle) {
         MeshModule::callModules(*p, src);
-
-#if !MESHTASTIC_EXCLUDE_MQTT
-        // After potentially altering it, publish received message to MQTT if we're not the original transmitter of the packet
-        if (decoded && moduleConfig.mqtt.enabled && getFrom(p) != nodeDB->getNodeNum() && mqtt)
-            mqtt->onSend(*p_encrypted, *p, p->channel);
-#endif
     }
-
+#if !MESHTASTIC_EXCLUDE_MQTT
+    // After potentially altering it, publish received message to MQTT if we're not the original transmitter of the packet
+    if (decoded && moduleConfig.mqtt.enabled && getFrom(p) != nodeDB->getNodeNum() && mqtt)
+        mqtt->onSend(*p_encrypted, *p, p->channel);
+#endif
+out:
     packetPool.release(p_encrypted); // Release the encrypted packet
 }
 
@@ -631,14 +639,13 @@ void Router::perhapsHandleReceived(meshtastic_MeshPacket *p)
         return;
     }
 
-    if (shouldFilterReceived(p)) {
+    bool filtered = shouldFilterReceived(p);
+    if (filtered) {
         LOG_DEBUG("Incoming message was filtered from 0x%x\n", p->from);
-        packetPool.release(p);
-        return;
     }
 
     // Note: we avoid calling shouldFilterReceived if we are supposed to ignore certain nodes - because some overrides might
     // cache/learn of the existence of nodes (i.e. FloodRouter) that they should not
-    handleReceived(p);
+    handleReceived(p, RX_SRC_RADIO, filtered);
     packetPool.release(p);
 }

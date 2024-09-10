@@ -4,6 +4,11 @@
 #include "NodeDB.h"
 #include "RTC.h"
 
+#if defined(META_MQTT) && !MESHTASTIC_EXCLUDE_MQTT
+#include "mqtt/MQTT.h"
+#include "target_specific.h"
+#endif
+
 NeighborInfoModule *neighborInfoModule;
 
 /*
@@ -108,8 +113,15 @@ void NeighborInfoModule::sendNeighborInfo(NodeNum dest, bool wantReplies)
     p->to = dest;
     p->decoded.want_response = wantReplies;
     p->priority = meshtastic_MeshPacket_Priority_BACKGROUND;
-    printNeighborInfo("SENDING", &neighborInfo);
-    service->sendToMesh(p, RX_SRC_LOCAL, true);
+    if (airTime->isTxAllowedChannelUtil(true) && airTime->isTxAllowedAirUtil()) {
+        printNeighborInfo("SENDING", &neighborInfo);
+        service->sendToMesh(p, RX_SRC_LOCAL, true);
+    }
+#ifdef META_MQTT
+    if (mqtt) {
+        mqtt->onSend(*p, *p, 0, true);
+    }
+#endif
 }
 
 /*
@@ -118,9 +130,7 @@ Will be used for broadcast.
 */
 int32_t NeighborInfoModule::runOnce()
 {
-    if (airTime->isTxAllowedChannelUtil(true) && airTime->isTxAllowedAirUtil()) {
-        sendNeighborInfo(NODENUM_BROADCAST, false);
-    }
+    sendNeighborInfo(NODENUM_BROADCAST, false);
     return Default::getConfiguredOrDefaultMs(moduleConfig.neighbor_info.update_interval, default_neighbor_info_broadcast_secs);
 }
 
