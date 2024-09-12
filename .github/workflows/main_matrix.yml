@@ -40,7 +40,6 @@ jobs:
       esp32s3: ${{ steps.jsonStep.outputs.esp32s3 }}
       esp32c3: ${{ steps.jsonStep.outputs.esp32c3 }}
       nrf52840: ${{ steps.jsonStep.outputs.nrf52840 }}
-      rp2040: ${{ steps.jsonStep.outputs.rp2040 }}
       stm32: ${{ steps.jsonStep.outputs.stm32 }}
       check: ${{ steps.jsonStep.outputs.check }}
 
@@ -95,15 +94,6 @@ jobs:
     with:
       board: ${{ matrix.board }}
 
-  build-rpi2040:
-    needs: setup
-    strategy:
-      fail-fast: false
-      matrix: ${{ fromJson(needs.setup.outputs.rp2040) }}
-    uses: ./.github/workflows/build_rpi2040.yml
-    with:
-      board: ${{ matrix.board }}
-
   build-stm32:
     needs: setup
     strategy:
@@ -112,12 +102,6 @@ jobs:
     uses: ./.github/workflows/build_stm32.yml
     with:
       board: ${{ matrix.board }}
-
-  package-raspbian:
-    uses: ./.github/workflows/package_raspbian.yml
-
-  package-raspbian-armv7l:
-    uses: ./.github/workflows/package_raspbian_armv7l.yml
 
   package-native:
     uses: ./.github/workflows/package_amd64.yml
@@ -143,10 +127,7 @@ jobs:
         build-esp32-s3,
         build-esp32-c3,
         build-nrf52,
-        build-rpi2040,
         build-stm32,
-        package-raspbian,
-        package-raspbian-armv7l,
         package-native,
       ]
     steps:
