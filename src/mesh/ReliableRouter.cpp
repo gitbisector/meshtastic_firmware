@@ -2,6 +2,7 @@
 #include "Default.h"
 #include "MeshModule.h"
 #include "MeshTypes.h"
+#include "RTC.h"
 #include "configuration.h"
 #include "mesh-pb-constants.h"
 #include "modules/NodeInfoModule.h"
@@ -242,6 +243,10 @@ int32_t ReliableRouter::doRetransmissions()
 
                 // Note: we call the superclass version because we don't want to have our version of send() add a new
                 // retransmission record
+#ifdef META_MQTT
+                // Update the timestamp so we can see retransmissions on MQTT
+                p.packet->rx_time = getValidTime(RTCQualityFromNet);
+#endif
                 FloodingRouter::send(packetPool.allocCopy(*p.packet));
 
                 // Queue again
